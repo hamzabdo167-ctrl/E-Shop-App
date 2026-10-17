@@ -1,12 +1,12 @@
-// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter, use_build_context_synchronously
+// ignore_for_file: use_build_context_synchronously
 
 import 'dart:convert';
-import 'dart:html' as html; // الموديل الخاص بتخزين المتصفح الدائم للويب
 import 'package:final_project/screens/login_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -23,50 +23,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSavedImage(); // اول ما الشاشة تفتح تقرأ الصورة المحفوظة فوراً
+    _loadSavedImage(); // قراءة الصورة المحفوظة فور فتح الشاشة
   }
 
-  // 1. قراءة الصورة المحفوظة في المتصفح
-  void _loadSavedImage() {
-    try {
-      if (kIsWeb) {
-        final String? base64Image = html.window.localStorage['profile_image'];
-        if (base64Image != null && base64Image.isNotEmpty) {
-          setState(() {
-            _imageBytes = base64Decode(base64Image);
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Error loading image from storage: $e");
+  // 1. قراءة الصورة المحفوظة عبر SharedPreferences
+  // 1. قراءة صورة الحساب الحالي فقط
+Future<void> _loadSavedImage() async {
+  try {
+    // جلب بيانات المستخدم الحالي المباشرة من Firebase
+    final user = FirebaseAuth.instance.currentUser;
+    
+    if (user == null || user.uid.isEmpty) {
+      setState(() {
+        _imageBytes = null;
+      });
+      return;
     }
-  }
 
-  // 2. اختيار الصورة وحفظها فوراً في الـ LocalStorage
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: source,
-        imageQuality: 80,
-      );
+    final prefs = await SharedPreferences.getInstance();
+    // مفتاح فريد جداً يعتمد على UID الخاص بالإيميل الحالي
+    final String key = 'profile_image_${user.uid}';
+    final String? base64Image = prefs.getString(key);
 
-      if (pickedFile != null) {
-        final bytes = await pickedFile.readAsBytes();
-        final base64String = base64Encode(bytes);
-
-        // حفظ الصورة دائمياً في المتصفح
-        if (kIsWeb) {
-          html.window.localStorage['profile_image'] = base64String;
-        }
-
-        setState(() {
-          _imageBytes = bytes;
-        });
-      }
-    } catch (e) {
-      debugPrint("Error picking image: $e");
+    if (base64Image != null && base64Image.isNotEmpty) {
+      setState(() {
+        _imageBytes = base64Decode(base64Image);
+      });
+    } else {
+      // لو الإيميل جديد وما لوش صورة، تفريغ الشاشة من أي صورة سابقة
+      setState(() {
+        _imageBytes = null;
+      });
     }
+  } catch (e) {
+    debugPrint("Error loading image: $e");
   }
+}
+
+// 2. حفظ صورة الحساب الحالي فقط
+Future<void> _pickImage(ImageSource source) async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.uid.isEmpty) return;
+
+    final XFile? pickedFile = await _picker.pickImage(
+      source: source,
+      imageQuality: 80,
+    );
+
+    if (pickedFile != null) {
+      final bytes = await pickedFile.readAsBytes();
+      final base64String = base64Encode(bytes);
+
+      final prefs = await SharedPreferences.getInstance();
+      final String key = 'profile_image_${user.uid}';
+      await prefs.setString(key, base64String);
+
+      setState(() {
+        _imageBytes = bytes;
+      });
+    }
+  } catch (e) {
+    debugPrint("Error picking image: $e");
+  }
+}
 
   void _showImagePickerModal() {
     showModalBottomSheet(
