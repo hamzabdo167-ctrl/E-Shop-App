@@ -28,65 +28,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 1. قراءة الصورة المحفوظة عبر SharedPreferences
   // 1. قراءة صورة الحساب الحالي فقط
-Future<void> _loadSavedImage() async {
-  try {
-    // جلب بيانات المستخدم الحالي المباشرة من Firebase
-    final user = FirebaseAuth.instance.currentUser;
-    
-    if (user == null || user.uid.isEmpty) {
-      setState(() {
-        _imageBytes = null;
-      });
-      return;
-    }
+  Future<void> _loadSavedImage() async {
+    try {
+      // جلب بيانات المستخدم الحالي المباشرة من Firebase
+      final user = FirebaseAuth.instance.currentUser;
 
-    final prefs = await SharedPreferences.getInstance();
-    // مفتاح فريد جداً يعتمد على UID الخاص بالإيميل الحالي
-    final String key = 'profile_image_${user.uid}';
-    final String? base64Image = prefs.getString(key);
-
-    if (base64Image != null && base64Image.isNotEmpty) {
-      setState(() {
-        _imageBytes = base64Decode(base64Image);
-      });
-    } else {
-      // لو الإيميل جديد وما لوش صورة، تفريغ الشاشة من أي صورة سابقة
-      setState(() {
-        _imageBytes = null;
-      });
-    }
-  } catch (e) {
-    debugPrint("Error loading image: $e");
-  }
-}
-
-// 2. حفظ صورة الحساب الحالي فقط
-Future<void> _pickImage(ImageSource source) async {
-  try {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || user.uid.isEmpty) return;
-
-    final XFile? pickedFile = await _picker.pickImage(
-      source: source,
-      imageQuality: 80,
-    );
-
-    if (pickedFile != null) {
-      final bytes = await pickedFile.readAsBytes();
-      final base64String = base64Encode(bytes);
+      if (user == null || user.uid.isEmpty) {
+        setState(() {
+          _imageBytes = null;
+        });
+        return;
+      }
 
       final prefs = await SharedPreferences.getInstance();
+      // مفتاح فريد جداً يعتمد على UID الخاص بالإيميل الحالي
       final String key = 'profile_image_${user.uid}';
-      await prefs.setString(key, base64String);
+      final String? base64Image = prefs.getString(key);
 
-      setState(() {
-        _imageBytes = bytes;
-      });
+      if (base64Image != null && base64Image.isNotEmpty) {
+        setState(() {
+          _imageBytes = base64Decode(base64Image);
+        });
+      } else {
+        // لو الإيميل جديد وما لوش صورة، تفريغ الشاشة من أي صورة سابقة
+        setState(() {
+          _imageBytes = null;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading image: $e");
     }
-  } catch (e) {
-    debugPrint("Error picking image: $e");
   }
-}
+
+  // 2. حفظ صورة الحساب الحالي فقط
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.uid.isEmpty) return;
+
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        final bytes = await pickedFile.readAsBytes();
+        final base64String = base64Encode(bytes);
+
+        final prefs = await SharedPreferences.getInstance();
+        final String key = 'profile_image_${user.uid}';
+        await prefs.setString(key, base64String);
+
+        setState(() {
+          _imageBytes = bytes;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
+    }
+  }
 
   void _showImagePickerModal() {
     showModalBottomSheet(
