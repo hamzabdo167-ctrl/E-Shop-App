@@ -1,4 +1,4 @@
-# final_project
+# E-Shop App
 
 A new Flutter project.
 
